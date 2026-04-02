@@ -1,0 +1,11 @@
+.env
+credentials/
+data/voiceql.db
+__pycache__/
+*.pyc
+.DS_Store
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
