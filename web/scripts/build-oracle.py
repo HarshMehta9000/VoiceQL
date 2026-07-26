@@ -298,6 +298,269 @@ by_region = dict(zip(
     [r[0] for r in conn.execute("SELECT region FROM sales GROUP BY region")],
     [r[0] for r in conn.execute("SELECT SUM(revenue) FROM sales GROUP BY region")]))
 
+# ---------------------------------------------------------------------------
+# The three false claims, lifted from the sources rather than retyped.
+#
+# The README ones come from the base commit, because P3 corrected them in place.
+# The teardown is about the published state, so that is the state we quote.
+# ---------------------------------------------------------------------------
+import subprocess
+
+BASE_COMMIT = "5bc0b9b"
+
+
+def at_base(rel):
+    return subprocess.run(
+        ["git", "show", f"{BASE_COMMIT}:{rel}"],
+        cwd=REPO, capture_output=True, text=True, check=True).stdout
+
+
+def line_of(text, needle):
+    for i, line in enumerate(text.split("\n"), 1):
+        if needle in line:
+            return i
+    return -1
+
+
+README_BASE = at_base("README.md")
+TESTS_BASE = at_base("backend/tests/test_voiceql.py")
+LLM_BASE = at_base("backend/services/llm.py")
+
+readme_revenue = re.search(r'VoiceQL: "([^"]*leads with [\d,]+[^"]*)"', README_BASE).group(1)
+readme_units = re.search(r'VoiceQL: "([^"]*highest units with \d+[^"]*)"', README_BASE).group(1)
+test_units = re.search(
+    r'assert synthesis_input\.text == "([^"]+)"', TESTS_BASE).group(1)
+
+CLAIMS = [
+    dict(
+        id="readme_revenue",
+        sourceFile="README.md",
+        sourceLine=line_of(README_BASE, readme_revenue),
+        sourceKind="readme",
+        question="Show me total revenue by region",
+        claimed=readme_revenue,
+        claimedSubject="North",
+        claimedFigure=23700,
+        queryId="revenue_by_region",
+        settles="the region with the largest SUM(revenue)",
+    ),
+    dict(
+        id="readme_units",
+        sourceFile="README.md",
+        sourceLine=line_of(README_BASE, readme_units),
+        sourceKind="readme",
+        question="Which product had the highest units sold last quarter?",
+        claimed=readme_units,
+        claimedSubject="Widget B",
+        claimedFigure=360,
+        queryId="q2_units_by_product",
+        settles="the product with the most units in Q2 2024",
+    ),
+    dict(
+        id="prompt_fewshot",
+        sourceFile="backend/services/llm.py",
+        sourceLine=line_of(LLM_BASE, FEWSHOT_SUMMARY),
+        sourceKind="prompt",
+        question="the example the model is conditioned on",
+        claimed=FEWSHOT_SUMMARY,
+        claimedSubject="North",
+        claimedFigure=23700,
+        queryId="revenue_by_region",
+        settles="the same region rollup, run for real",
+    ),
+    dict(
+        id="test_units",
+        sourceFile="backend/tests/test_voiceql.py",
+        sourceLine=line_of(TESTS_BASE, f'== "{test_units}"'),
+        sourceKind="test",
+        question="what the suite asserts the device says",
+        claimed=test_units,
+        claimedSubject="Widget B",
+        claimedFigure=None,
+        queryId="agg_units_by_product",
+        settles="the product with the most units all time",
+    ),
+]
+
+# Resolve each claim against the database, here, once.
+for c in CLAIMS:
+    q = next(x for x in queries if x["id"] == c["queryId"])
+    top_subject, top_value = q["rows"][0][0], q["rows"][0][1]
+    claimed_row = next((r for r in q["rows"] if r[0] == c["claimedSubject"]), None)
+    c["actualSubject"] = top_subject
+    c["actualFigure"] = int(top_value)
+    c["subjectWrong"] = top_subject != c["claimedSubject"]
+    c["claimedSubjectActual"] = int(claimed_row[1]) if claimed_row else None
+    c["claimedSubjectRank"] = (
+        [r[0] for r in q["rows"]].index(c["claimedSubject"]) + 1
+        if claimed_row else None)
+    if c["claimedFigure"] is not None:
+        target = c["claimedSubjectActual"] if not c["subjectWrong"] else c["actualFigure"]
+        c["delta"] = target - c["claimedFigure"]
+        c["factor"] = round(target / c["claimedFigure"], 4)
+    else:
+        c["delta"] = None
+        c["factor"] = None
+
+# ---------------------------------------------------------------------------
+# Test x-ray, element E6.
+#
+# Every test and every assert is parsed out of the suite and classified. The
+# classification is computed, not hand sorted, so it cannot drift and cannot be
+# accused of being arranged to suit the argument.
+#
+# The load bearing bucket is "value_computed": an assert comparing a query
+# result to an independently known figure. The claim of the whole site is that
+# this bucket is empty.
+# ---------------------------------------------------------------------------
+TEST_SRC = TESTS_BASE
+_test_lines = TEST_SRC.split("\n")
+
+# Real aggregates. An assert quoting one of these would be checking arithmetic.
+TRUE_FIGURES = {"53200", "53,200", "137800", "137,800", "35600", "34900",
+                "14100", "106900", "30900", "62400", "44500", "16200", "14700",
+                "540", "520", "490", "445", "340", "305", "220", "180"}
+
+
+def classify_assert(line, body):
+    """Bucket a single assert. `body` is the enclosing test function source."""
+    s = line.strip()
+    expr = s[len("assert "):] if s.startswith("assert ") else s
+
+    if "isinstance(" in expr:
+        return "type", "checks a Python type, not a value"
+    if "status_code" in expr:
+        return "status", "checks an HTTP status, not a value"
+    if re.search(r"==\s*(-?\d+(\.\d+)?)\s*$", expr) or re.search(r'==\s*["\']', expr):
+        # An equality against a literal. Is that literal something the test
+        # itself supplied earlier in its own body, or an independent figure?
+        m = re.search(r'==\s*(.+)$', expr)
+        literal = m.group(1).strip() if m else ""
+        bare = literal.strip('"\'')
+        if bare in TRUE_FIGURES:
+            return "value_computed", "compares against a real aggregate"
+        # Count how often the literal appears in the test body. Twice or more
+        # means the test both supplied it and asserted it: a round trip.
+        occurrences = body.count(literal) if literal else 0
+        if occurrences >= 2:
+            return "value_self_supplied", "echoes a value this test supplied"
+        return "value_self_supplied", "asserts a literal the test controls"
+    if re.search(r"\bin\b", expr) and "==" not in expr:
+        return "shape", "checks a key or substring is present"
+    if re.search(r"len\(|>=|>\s*0|<=|<\s", expr):
+        return "shape", "checks cardinality, not content"
+    return "other", "unclassified"
+
+
+tests = []
+_current = None
+for i, line in enumerate(_test_lines, 1):
+    m = re.match(r"\s*(?:async\s+)?def (test_\w+)", line)
+    if m:
+        # Body runs to the next def at the same or lower indent.
+        indent = len(line) - len(line.lstrip())
+        body_lines = []
+        for nxt in _test_lines[i:]:
+            if re.match(r"\s*(?:async\s+)?def test_\w+", nxt) and (
+                    len(nxt) - len(nxt.lstrip())) <= indent:
+                break
+            body_lines.append(nxt)
+        body = "\n".join(body_lines)
+        _current = {
+            "name": m.group(1),
+            "line": i,
+            "asserts": [],
+        }
+        for j, bl in enumerate(body_lines, i + 1):
+            if re.match(r"\s*assert ", bl):
+                kind, why = classify_assert(bl, body)
+                _current["asserts"].append({
+                    "line": j, "text": bl.strip(), "kind": kind, "why": why,
+                })
+        tests.append(_current)
+
+_bucket_counts = {}
+for t in tests:
+    for a in t["asserts"]:
+        _bucket_counts[a["kind"]] = _bucket_counts.get(a["kind"], 0) + 1
+
+# Which finding each test fails to catch. Mapped by what the test touches.
+FINDING_BLIND_SPOTS = {
+    "revenue": ["F1", "F2"],
+    "region": ["F1", "F2"],
+    "units": ["F3", "F11"],
+    "product": ["F3", "F11"],
+    "guard": ["F4"],
+    "select_only": ["F4"],
+    "history": ["F6"],
+    "limit": ["F6"],
+    "header": ["F7"],
+    "voice": ["F5", "F7"],
+}
+for t in tests:
+    blind = set()
+    for needle, findings in FINDING_BLIND_SPOTS.items():
+        if needle in t["name"].lower():
+            blind.update(findings)
+    t["blindTo"] = sorted(blind)
+    t["assertsAValue"] = any(
+        a["kind"] == "value_computed" for a in t["asserts"])
+
+# The latency table, parsed out of the README rather than retyped. `awaited`
+# encodes F5: Whisper and Claude are awaited and yield the loop; SQLite and TTS
+# are called synchronously inside an async def and hold it.
+_rows = re.findall(r"\|\s*([^|]+?)\s*\|\s*[~<]?(\d+)ms\s*\|", README_BASE)
+AWAITED = {"Whisper transcription", "Claude SQL generation"}
+CLIENT = {"EchoKit record + POST"}
+STAGES = [
+    dict(name=n, ms=int(ms), awaited=n in AWAITED, client=n in CLIENT,
+         source=f"README.md:{line_of(README_BASE, n)}")
+    for n, ms in _rows
+]
+
+# The demo reel for the hero terminal. Spoken phrasing paired with the query
+# that answers it, and the shape of the sentence the model is asked to return.
+SPOKEN = {
+    "revenue_by_region": ("Show me total revenue by region",
+                          "{0} leads with {1} in total revenue."),
+    "q2_units_by_product": ("Which product had the highest units sold last quarter",
+                            "{0} had the highest units with {1} sold in Q2."),
+    "readme_total_revenue": ("What is the total revenue this year",
+                             "Total revenue is {0}."),
+    "readme_top3_units": ("Show me the top three products by units sold",
+                          "{0} leads on units with {1}."),
+    "readme_lowest_region": ("Which region has the lowest revenue",
+                             "{0} has the lowest revenue at {1}."),
+    "readme_february_count": ("How many sales happened in February",
+                              "There were {0} sales in February."),
+    "readme_north_vs_south": ("Compare revenue between North and South",
+                              "{0} is ahead with {1}."),
+    "readme_all_electronics": ("Show me all electronics sales",
+                               "Found {n} electronics sales."),
+    "agg_revenue_by_category": ("Break revenue down by category",
+                                "{0} leads with {1}."),
+    "agg_revenue_by_product": ("Which product earns the most revenue",
+                               "{0} earns the most at {1}."),
+    "agg_units_by_product": ("Who sold the most units overall",
+                             "{0} sold the most units, {1}."),
+    "agg_by_month": ("Show me revenue by month",
+                     "{n} months of data, peaking at {1}."),
+}
+DEMO = []
+for qid, (spoken, tmpl) in SPOKEN.items():
+    q = next(x for x in queries if x["id"] == qid)
+    top = q["rows"][0] if q["rows"] else []
+    summary = tmpl
+    for idx, cell in enumerate(top):
+        try:
+            val = f"{int(float(cell)):,}"
+        except (TypeError, ValueError):
+            val = str(cell)
+        summary = summary.replace("{" + str(idx) + "}", val)
+    summary = summary.replace("{n}", str(len(q["rows"])))
+    DEMO.append(dict(id=qid, spoken=spoken, sql=q["sql"],
+                     columns=q["columns"], rows=q["rows"], summary=summary))
+
 oracle = {
     "generatedBy": "web/scripts/build-oracle.py",
     "sqliteVersion": sqlite3.sqlite_version,
@@ -309,6 +572,12 @@ oracle = {
         "historyCap": HISTORY_CAP,
     },
     "fewShot": {"sql": FEWSHOT_SQL, "summary": FEWSHOT_SUMMARY},
+    "baseCommit": BASE_COMMIT,
+    "claims": CLAIMS,
+    "stages": STAGES,
+    "demo": DEMO,
+    "tests": tests,
+    "assertBuckets": _bucket_counts,
     "queries": queries,
     "guard": guard,
     "replaceMutation": {"before": before, "after": after},
@@ -332,3 +601,10 @@ print(f"  blocklist parsed  {BLOCKLIST}")
 print(f"  few shot sql      {FEWSHOT_SQL}")
 print(f"  few shot summary  {FEWSHOT_SUMMARY!r}")
 print(f"  North actual      {by_region['North']:,.0f}")
+print(f"  claims resolved   {len(CLAIMS)}")
+print(f"  tests parsed      {len(tests)}, asserts {sum(len(t['asserts']) for t in tests)}")
+for k in sorted(_bucket_counts, key=lambda x: -_bucket_counts[x]):
+    print(f"    {k:<22} {_bucket_counts[k]}")
+for c in CLAIMS:
+    mark = "subject+figure" if c["subjectWrong"] else "figure"
+    print(f"    {c['id']:<16} {c['sourceFile']}:{c['sourceLine']:<4} wrong {mark}")

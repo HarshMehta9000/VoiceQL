@@ -226,33 +226,73 @@ const oracle = JSON.parse(
 );
 const READMENOW = working("README.md");
 
-function group(v) {
-  return Number(v).toLocaleString("en-US");
+
+// The example answers in the README are generated from the database. Each one
+// must still be exactly what the query returns, so a stale README fails here
+// rather than shipping a number the product does not produce.
+for (const d of oracle.demo.slice(0, 8)) {
+  check(`README example present: ${d.spoken.slice(0, 30)}`,
+    READMENOW.includes(`| "${d.spoken}" | "${d.summary}" |`), true);
 }
+check("README quotes the true revenue leader",
+  READMENOW.includes("North leads with 53,200 in total revenue."), true);
+check("README quotes the true Q2 unit leader",
+  READMENOW.includes("Gadget X had the highest units with 340 sold in Q2."), true);
+check("README no longer states the old revenue figure",
+  /23,700/.test(READMENOW), false);
+check("README no longer states the old Q2 figure",
+  /highest units with 360/.test(READMENOW), false);
+check("README links the interactive walkthrough", /\(web\/\)/.test(READMENOW), true);
 
-const regionRows = oracle.queries.find((q) => q.id === "revenue_by_region").rows;
-const [topRegion, topRegionTotal] = regionRows[0];
-check("corrected README names the true revenue leader",
-  new RegExp(`"${topRegion} leads with ${group(topRegionTotal)} in total revenue\\."`)
-    .test(READMENOW), true);
+// ---------------------------------------------------------------------------
+// Test x-ray (E6). The classification is computed by build-oracle.py, so these
+// assertions check the computation, not a hand sorted list.
+// ---------------------------------------------------------------------------
+check("x-ray parsed every test", oracle.tests.length, testCount);
+check("x-ray parsed every assert",
+  oracle.tests.reduce((n, t) => n + t.asserts.length, 0), asserts.length);
 
-const q2Rows = oracle.queries.find((q) => q.id === "q2_units_by_product").rows;
-const [q2Product, q2Units] = q2Rows[0];
-check("corrected README names the true Q2 unit leader",
-  new RegExp(`"${q2Product} had the highest units with ${q2Units} sold in Q2\\."`)
-    .test(READMENOW), true);
+const buckets = oracle.assertBuckets;
+check("buckets account for every assert",
+  Object.values(buckets).reduce((a, b) => a + b, 0), asserts.length);
 
-const widgetB = q2Rows.find((r) => r[0] === "Widget B");
-check("corrected README places Widget B third on the real number",
-  READMENOW.includes(`Widget B third at ${widgetB[1]}`), true);
+// The whole argument of the site, as a number.
+check("no assert compares against a computed result",
+  buckets.value_computed ?? 0, 0);
+check("the suite is mostly shape checks", buckets.shape, 30);
+check("eight equality asserts, all self supplied", buckets.value_self_supplied, 8);
+check("no assert is left unclassified", buckets.other ?? 0, 0);
 
-check("corrected README no longer asserts 23,700 as truth",
-  /VoiceQL: "North leads with 23,700/.test(READMENOW), false);
-check("corrected README no longer asserts Widget B at 360",
-  /VoiceQL: "Widget B had the highest units with 360/.test(READMENOW), false);
-check("corrected README still names the old figures as wrong",
-  /quoted 23,700 for/.test(READMENOW) && /Widget B at 360 units/.test(READMENOW), true);
-check("corrected README points at the teardown", /\(web\/\)/.test(READMENOW), true);
+// The async tests must be in there. Six of the 22 are `async def`, and a parser
+// that only matched `def test_` silently dropped them while still totalling the
+// right number of asserts, which is exactly the kind of quiet miscount this
+// project is about.
+check("async tests were parsed",
+  oracle.tests.filter((t) => /voice|query_endpoint|history|health/.test(t.name)).length > 0,
+  true);
+check("every parsed test has a source line",
+  oracle.tests.every((t) => t.line > 0), true);
+check("the claim carrying test is line 278",
+  oracle.tests.some((t) => t.asserts.some((a) => a.line === 278)), true);
+
+// ---------------------------------------------------------------------------
+// Claims (E2). Four instances of three wrong assertions.
+// ---------------------------------------------------------------------------
+check("four claims resolved", oracle.claims.length, 4);
+for (const c of oracle.claims) {
+  check(`claim ${c.id}: has a real source line`, c.sourceLine > 0, true);
+  check(`claim ${c.id}: resolves to a real subject`,
+    typeof c.actualSubject === "string" && c.actualSubject.length > 0, true);
+}
+check("two claims name the wrong subject entirely",
+  oracle.claims.filter((c) => c.subjectWrong).length, 2);
+check("the README revenue claim is off by 29,500",
+  oracle.claims.find((c) => c.id === "readme_revenue").delta, 29500);
+check("the prompt repeats the same wrong figure",
+  oracle.claims.find((c) => c.id === "prompt_fewshot").claimedFigure,
+  oracle.claims.find((c) => c.id === "readme_revenue").claimedFigure);
+check("Widget B is fourth on all time units",
+  oracle.claims.find((c) => c.id === "test_units").claimedSubjectRank, 4);
 
 // ---------------------------------------------------------------------------
 // Latency arithmetic, section 4d

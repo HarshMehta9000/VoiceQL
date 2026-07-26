@@ -1,10 +1,25 @@
 # Ledger
 
-updated: 2026-07-26T18:05:00Z
-phase: 3 of 8  (repo reorganisation)
-task: T3.3  README corrected, CI extended, committed
+updated: 2026-07-26T20:10:00Z
+phase: 6 of 8  (site, media and README)
+task: T6.1  showcase site, showcase media, README rewritten
 status: done
-next command: P4 media generation. Read `node_modules/next/dist/docs/` before any component in P5.
+next command: P7 owner review, then P8 ship
+
+## DIRECTION CHANGE, 2026-07-26
+
+The owner rejected the teardown framing outright. The site is now a **showcase**
+of VoiceQL, not a critique of it. Anything in the sections below that describes
+building a teardown is historical; the analysis itself is still true and still
+gated, it is just no longer what the page is about.
+
+What the site is now: a terminal hero that runs voice to SQL end to end on a
+loop over 12 questions, then five elements (Try it / Ask it anything / The data /
+Where the two seconds go / The board). Every element runs on autopilot and yields
+to the visitor on first interaction.
+
+Removed from the page: the claim checker, the guard bench, the test x-ray, the
+"README is wrong" hero. Still in git history.
 
 ## Done
 
