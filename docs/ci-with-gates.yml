@@ -1,0 +1,101 @@
+# Proposed replacement for .github/workflows/ci.yml
+#
+# Not applied automatically: pushing a change under .github/workflows/
+# requires a token with the `workflow` scope, and the available token only
+# carries `repo`. Copy this file over .github/workflows/ci.yml to enable
+# the gates job, which regenerates the oracle, fails on any diff, and runs
+# both verifiers, types, lint, build and the dash check.
+#
+name: VoiceQL CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          cd backend
+          python -m pytest tests/test_voiceql.py -v
+        env:
+          OPENAI_API_KEY: sk-test-fake
+          ANTHROPIC_API_KEY: sk-ant-test-fake
+          GOOGLE_TTS_CREDENTIALS: credentials/fake.json
+          DATABASE_URL: ":memory:"
+
+  gates:
+    name: Teardown gates
+    runs-on: ubuntu-latest
+
+    steps:
+      # verify-findings.mjs reads the analysed sources via `git show` at the
+      # base commit, so it needs history rather than a shallow checkout.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: cd web && npm ci
+
+      - name: Oracle is current
+        # Regenerating from the live backend must not change the committed
+        # oracle. If it does, a figure on the site no longer matches the repo.
+        run: |
+          cd web
+          python3 scripts/build-oracle.py
+          git diff --exit-code -- src/data/oracle.json
+
+      - name: Types
+        run: cd web && npx tsc --noEmit
+
+      - name: Lint
+        run: cd web && npx eslint src scripts
+
+      - name: Oracle parity, sql.js against Python sqlite3
+        run: cd web && node scripts/verify-oracle.mjs
+
+      - name: Findings still reproduce
+        run: cd web && node scripts/verify-findings.mjs
+
+      - name: Build
+        run: cd web && npm run build
+
+      - name: No em or en dashes
+        run: |
+          if grep -rnP '[\x{2012}-\x{2015}]' \
+              --include='*.ts' --include='*.tsx' --include='*.mjs' \
+              --include='*.py' web/src web/scripts; then
+            echo "em or en dash found"
+            exit 1
+          fi
+          echo "clean"
