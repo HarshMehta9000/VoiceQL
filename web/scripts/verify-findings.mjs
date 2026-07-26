@@ -242,7 +242,12 @@ check("README no longer states the old revenue figure",
   /23,700/.test(READMENOW), false);
 check("README no longer states the old Q2 figure",
   /highest units with 360/.test(READMENOW), false);
-check("README links the interactive walkthrough", /\(web\/\)/.test(READMENOW), true);
+// The README must point at the deployed walkthrough, not at a local path.
+check("README links the live site",
+  /voiceql\.vercel\.app/.test(READMENOW), true);
+check("README leads with the hero GIF before any prose",
+  READMENOW.indexOf("![voice to SQL, live](docs/media/voice-to-sql.gif)")
+    < READMENOW.indexOf("Whisper transcribes"), true);
 
 // ---------------------------------------------------------------------------
 // Test x-ray (E6). The classification is computed by build-oracle.py, so these
