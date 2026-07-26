@@ -4,13 +4,15 @@
 
 Speak a data question. Get a spoken answer in under three seconds.
 
+**[voiceql.vercel.app](https://voiceql.vercel.app)**
+
 ![voice to SQL, live](docs/media/voice-to-sql.gif)
 
 Whisper transcribes what you said, Claude writes the SQL, SQLite answers, and
 the board speaks the result back. Everything in that clip is real: the SQL runs
 against the twelve sample rows in `backend/database/db.py`.
 
-**[Play with it in your browser](web/)** &mdash; the whole pipeline, simulated,
+**[Play with it in your browser](https://voiceql.vercel.app)** &mdash; the whole pipeline, simulated,
 with a live SQLite compiled to WebAssembly. No backend, no API keys, no spend.
 
 ### What you can ask it
