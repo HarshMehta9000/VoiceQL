@@ -215,6 +215,46 @@ for (const n of REAL_AGGREGATES) {
 check("no test asserts a revenue total at all", /assert\s+.*SUM\(revenue\).*==\s*\d/.test(TESTS), false);
 
 // ---------------------------------------------------------------------------
+// The correction itself must be right.
+//
+// P3 rewrote the README's two demo blocks. Those replacement figures were typed
+// by a human, so they are checked against the oracle rather than trusted. If
+// anyone "fixes" this README again with another invented number, this fails.
+// ---------------------------------------------------------------------------
+const oracle = JSON.parse(
+  readFileSync(path.join(REPO, "web/src/data/oracle.json"), "utf8"),
+);
+const READMENOW = working("README.md");
+
+function group(v) {
+  return Number(v).toLocaleString("en-US");
+}
+
+const regionRows = oracle.queries.find((q) => q.id === "revenue_by_region").rows;
+const [topRegion, topRegionTotal] = regionRows[0];
+check("corrected README names the true revenue leader",
+  new RegExp(`"${topRegion} leads with ${group(topRegionTotal)} in total revenue\\."`)
+    .test(READMENOW), true);
+
+const q2Rows = oracle.queries.find((q) => q.id === "q2_units_by_product").rows;
+const [q2Product, q2Units] = q2Rows[0];
+check("corrected README names the true Q2 unit leader",
+  new RegExp(`"${q2Product} had the highest units with ${q2Units} sold in Q2\\."`)
+    .test(READMENOW), true);
+
+const widgetB = q2Rows.find((r) => r[0] === "Widget B");
+check("corrected README places Widget B third on the real number",
+  READMENOW.includes(`Widget B third at ${widgetB[1]}`), true);
+
+check("corrected README no longer asserts 23,700 as truth",
+  /VoiceQL: "North leads with 23,700/.test(READMENOW), false);
+check("corrected README no longer asserts Widget B at 360",
+  /VoiceQL: "Widget B had the highest units with 360/.test(READMENOW), false);
+check("corrected README still names the old figures as wrong",
+  /quoted 23,700 for/.test(READMENOW) && /Widget B at 360 units/.test(READMENOW), true);
+check("corrected README points at the teardown", /\(web\/\)/.test(READMENOW), true);
+
+// ---------------------------------------------------------------------------
 // Latency arithmetic, section 4d
 // ---------------------------------------------------------------------------
 const steps = [...README.matchAll(/\|\s*[^|]*?\|\s*[~<]?(\d+)ms\s*\|/g)].map((m) => Number(m[1]));

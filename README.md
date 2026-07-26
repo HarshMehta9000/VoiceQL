@@ -13,15 +13,27 @@ Built with Arduino R4 WiFi + EchoKit + FastAPI + OpenAI Whisper + Google Cloud T
 ```
 You: "Show me total revenue by region"
 
-VoiceQL: "North leads with 23,700 in total revenue."
+VoiceQL: "North leads with 53,200 in total revenue."
          [OLED displays: region breakdown table]
 ```
 
 ```
 You: "Which product had the highest units sold last quarter?"
 
-VoiceQL: "Widget B had the highest units with 360 sold in Q2."
+VoiceQL: "Gadget X had the highest units with 340 sold in Q2."
 ```
+
+> **These two figures were wrong until recently.** This README quoted 23,700 for
+> North and named Widget B at 360 units for Q2. Neither survives contact with the
+> sample data in `backend/database/db.py`: North totals 53,200, and Q2's unit
+> leader is Gadget X at 340, with Widget B third at 220. The same false 23,700
+> still sits in the few shot example inside `backend/services/llm.py`, which
+> means the model is conditioned on a wrong answer to a question about the
+> database it is being asked to query.
+>
+> The 22 test suite never caught any of it, because no test asserts a computed
+> result. See the interactive teardown in [`web/`](web/) for the working, which
+> runs every query in this README against the real 12 row table in your browser.
 
 ---
 
