@@ -1,10 +1,10 @@
 # Ledger
 
-updated: 2026-07-26T17:40:00Z
-phase: 2 of 8  (ground truth gate)
-task: T2.6  both gates green, committed
+updated: 2026-07-26T18:05:00Z
+phase: 3 of 8  (repo reorganisation)
+task: T3.3  README corrected, CI extended, committed
 status: done
-next command: P3 repo reorganisation, then read `node_modules/next/dist/docs/` before any component
+next command: P4 media generation. Read `node_modules/next/dist/docs/` before any component in P5.
 
 ## Done
 
@@ -27,8 +27,16 @@ next command: P3 repo reorganisation, then read `node_modules/next/dist/docs/` b
       reproduce against 5bc0b9b.
 - [x] T2.6 four gates green: tsc clean, eslint clean, both verifiers, next build
       succeeds. Zero dashes in my files.
+- [x] T3.1 README's two false demo blocks corrected in place, with a note that
+      names the old figures, says why they were wrong, and points at `web/`.
+      The rest of the README is untouched; P6 restructures it for the GIFs.
+- [x] T3.2 seven new assertions that check the correction itself against the
+      oracle, so a future wrong "fix" fails the build. Mutation tested both
+      ways: 53,200 to 53,201 fails, Gadget X to Widget A fails.
+- [x] T3.3 `.github/workflows/ci.yml` extended. Original `test` job preserved
+      byte for byte; new `gates` job added.
 
-**455 assertions total**, against a target of 150.
+**462 assertions total**, against a target of 150.
 
 ## Blocked
 
