@@ -1,0 +1,36 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "oracle": "python3 scripts/build-oracle.py",
+    "verify:oracle": "node scripts/verify-oracle.mjs",
+    "verify:findings": "node scripts/verify-findings.mjs",
+    "verify": "npm run verify:oracle && npm run verify:findings",
+    "gates": "npx tsc --noEmit && npx eslint src scripts && npm run verify && npm run build",
+    "media": "node scripts/gen-media.mjs"
+  },
+  "dependencies": {
+    "next": "16.2.12",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.0.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/sql.js": "^1.4.11",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.12",
+    "gifenc": "^1.0.3",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

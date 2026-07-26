@@ -9,3 +9,6 @@ venv/
 *.egg-info/
 dist/
 build/
+
+# QA frames from the media generator, regenerable
+docs/media/qa/

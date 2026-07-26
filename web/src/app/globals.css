@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+/*
+ * The palette lives in src/lib/theme.ts, which the media generator also reads.
+ * These custom properties mirror it so the page and the GIFs cannot drift.
+ * Dark instrument panel; the steps are the validated dark column.
+ */
+:root {
+  --plane: #0d0d0c;
+  --surface: #121210;
+  --raised: #1a1a19;
+  --hairline: #2c2c2a;
+  --baseline: #383835;
+
+  --ink: #ffffff;
+  --ink-secondary: #c3c2b7;
+  --ink-muted: #898781;
+
+  --brand: #3987e5;
+  --data: #199e70;
+  --alarm: #d03b3b;
+  --warning: #fab219;
+
+  --mono: "Source Code Pro", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+  background: var(--plane);
+}
+
+body {
+  background: var(--plane);
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+/* Wide content scrolls inside its own box; the page never scrolls sideways. */
+.scroll-x {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* Focus is always visible. Keyboard users are not second class. */
+:where(button, input, textarea, select, a):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+table.grid-table {
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12px;
+  width: 100%;
+}
+
+table.grid-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink-muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--hairline);
+  white-space: nowrap;
+}
+
+table.grid-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+
+table.grid-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

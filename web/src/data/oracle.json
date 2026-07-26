@@ -1,0 +1,1746 @@
+{
+  "generatedBy": "web/scripts/build-oracle.py",
+  "sqliteVersion": "3.40.0",
+  "schema": "\nCREATE TABLE IF NOT EXISTS sales (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    date TEXT NOT NULL,\n    product TEXT NOT NULL,\n    category TEXT NOT NULL,\n    region TEXT NOT NULL,\n    units INTEGER NOT NULL,\n    revenue REAL NOT NULL\n);\n\nCREATE TABLE IF NOT EXISTS query_history (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    timestamp TEXT DEFAULT (datetime('now')),\n    voice_input TEXT,\n    generated_sql TEXT,\n    result_summary TEXT,\n    latency_ms INTEGER\n);\n",
+  "sampleData": "\nINSERT OR IGNORE INTO sales (date, product, category, region, units, revenue) VALUES\n('2024-01-15', 'Widget A', 'Electronics', 'North', 120, 14400.00),\n('2024-01-20', 'Widget B', 'Electronics', 'South', 85, 8500.00),\n('2024-02-05', 'Gadget X', 'Accessories', 'East', 200, 6000.00),\n('2024-02-18', 'Widget A', 'Electronics', 'West', 95, 11400.00),\n('2024-03-10', 'Gadget Y', 'Accessories', 'North', 310, 9300.00),\n('2024-03-22', 'Widget B', 'Electronics', 'East', 140, 14000.00),\n('2024-04-01', 'Widget A', 'Electronics', 'South', 175, 21000.00),\n('2024-04-15', 'Gadget X', 'Accessories', 'West', 90, 2700.00),\n('2024-05-05', 'Widget B', 'Electronics', 'North', 220, 22000.00),\n('2024-05-20', 'Gadget Y', 'Accessories', 'South', 180, 5400.00),\n('2024-06-01', 'Widget A', 'Electronics', 'East', 130, 15600.00),\n('2024-06-14', 'Gadget X', 'Accessories', 'North', 250, 7500.00);\n",
+  "blocklist": [
+    "INSERT",
+    "UPDATE",
+    "DELETE",
+    "DROP",
+    "ALTER",
+    "CREATE"
+  ],
+  "headerLimits": {
+    "transcript": 80,
+    "sql": 200,
+    "rows": 3,
+    "historyCap": 50
+  },
+  "fewShot": {
+    "sql": "SELECT region, SUM(revenue) FROM sales GROUP BY region",
+    "summary": "North leads with 23,700 in revenue."
+  },
+  "baseCommit": "5bc0b9b",
+  "claims": [
+    {
+      "id": "readme_revenue",
+      "sourceFile": "README.md",
+      "sourceLine": 16,
+      "sourceKind": "readme",
+      "question": "Show me total revenue by region",
+      "claimed": "North leads with 23,700 in total revenue.",
+      "claimedSubject": "North",
+      "claimedFigure": 23700,
+      "queryId": "revenue_by_region",
+      "settles": "the region with the largest SUM(revenue)",
+      "actualSubject": "North",
+      "actualFigure": 53200,
+      "subjectWrong": false,
+      "claimedSubjectActual": 53200,
+      "claimedSubjectRank": 1,
+      "delta": 29500,
+      "factor": 2.2447
+    },
+    {
+      "id": "readme_units",
+      "sourceFile": "README.md",
+      "sourceLine": 23,
+      "sourceKind": "readme",
+      "question": "Which product had the highest units sold last quarter?",
+      "claimed": "Widget B had the highest units with 360 sold in Q2.",
+      "claimedSubject": "Widget B",
+      "claimedFigure": 360,
+      "queryId": "q2_units_by_product",
+      "settles": "the product with the most units in Q2 2024",
+      "actualSubject": "Gadget X",
+      "actualFigure": 340,
+      "subjectWrong": true,
+      "claimedSubjectActual": 220,
+      "claimedSubjectRank": 3,
+      "delta": -20,
+      "factor": 0.9444
+    },
+    {
+      "id": "prompt_fewshot",
+      "sourceFile": "backend/services/llm.py",
+      "sourceLine": 26,
+      "sourceKind": "prompt",
+      "question": "the example the model is conditioned on",
+      "claimed": "North leads with 23,700 in revenue.",
+      "claimedSubject": "North",
+      "claimedFigure": 23700,
+      "queryId": "revenue_by_region",
+      "settles": "the same region rollup, run for real",
+      "actualSubject": "North",
+      "actualFigure": 53200,
+      "subjectWrong": false,
+      "claimedSubjectActual": 53200,
+      "claimedSubjectRank": 1,
+      "delta": 29500,
+      "factor": 2.2447
+    },
+    {
+      "id": "test_units",
+      "sourceFile": "backend/tests/test_voiceql.py",
+      "sourceLine": 278,
+      "sourceKind": "test",
+      "question": "what the suite asserts the device says",
+      "claimed": "Widget B sold the most units.",
+      "claimedSubject": "Widget B",
+      "claimedFigure": null,
+      "queryId": "agg_units_by_product",
+      "settles": "the product with the most units all time",
+      "actualSubject": "Gadget X",
+      "actualFigure": 540,
+      "subjectWrong": true,
+      "claimedSubjectActual": 445,
+      "claimedSubjectRank": 4,
+      "delta": null,
+      "factor": null
+    }
+  ],
+  "stages": [
+    {
+      "name": "EchoKit record + POST",
+      "ms": 200,
+      "awaited": false,
+      "client": true,
+      "source": "README.md:54"
+    },
+    {
+      "name": "Whisper transcription",
+      "ms": 600,
+      "awaited": true,
+      "client": false,
+      "source": "README.md:55"
+    },
+    {
+      "name": "Claude SQL generation",
+      "ms": 800,
+      "awaited": true,
+      "client": false,
+      "source": "README.md:56"
+    },
+    {
+      "name": "SQLite query",
+      "ms": 10,
+      "awaited": false,
+      "client": false,
+      "source": "README.md:57"
+    },
+    {
+      "name": "Google TTS synthesis",
+      "ms": 400,
+      "awaited": false,
+      "client": false,
+      "source": "README.md:58"
+    }
+  ],
+  "demo": [
+    {
+      "id": "revenue_by_region",
+      "spoken": "Show me total revenue by region",
+      "sql": "SELECT region, SUM(revenue) AS total FROM sales GROUP BY region ORDER BY total DESC",
+      "columns": [
+        "region",
+        "total"
+      ],
+      "rows": [
+        [
+          "North",
+          "53200"
+        ],
+        [
+          "East",
+          "35600"
+        ],
+        [
+          "South",
+          "34900"
+        ],
+        [
+          "West",
+          "14100"
+        ]
+      ],
+      "summary": "North leads with 53,200 in total revenue."
+    },
+    {
+      "id": "q2_units_by_product",
+      "spoken": "Which product had the highest units sold last quarter",
+      "sql": "SELECT product, SUM(units) AS units FROM sales WHERE date >= '2024-04-01' AND date <= '2024-06-30' GROUP BY product ORDER BY units DESC",
+      "columns": [
+        "product",
+        "units"
+      ],
+      "rows": [
+        [
+          "Gadget X",
+          "340"
+        ],
+        [
+          "Widget A",
+          "305"
+        ],
+        [
+          "Widget B",
+          "220"
+        ],
+        [
+          "Gadget Y",
+          "180"
+        ]
+      ],
+      "summary": "Gadget X had the highest units with 340 sold in Q2."
+    },
+    {
+      "id": "readme_total_revenue",
+      "spoken": "What is the total revenue this year",
+      "sql": "SELECT SUM(revenue) AS total_revenue FROM sales WHERE date LIKE '2024%'",
+      "columns": [
+        "total_revenue"
+      ],
+      "rows": [
+        [
+          "137800"
+        ]
+      ],
+      "summary": "Total revenue is 137,800."
+    },
+    {
+      "id": "readme_top3_units",
+      "spoken": "Show me the top three products by units sold",
+      "sql": "SELECT product, SUM(units) AS units FROM sales GROUP BY product ORDER BY units DESC LIMIT 3",
+      "columns": [
+        "product",
+        "units"
+      ],
+      "rows": [
+        [
+          "Gadget X",
+          "540"
+        ],
+        [
+          "Widget A",
+          "520"
+        ],
+        [
+          "Gadget Y",
+          "490"
+        ]
+      ],
+      "summary": "Gadget X leads on units with 540."
+    },
+    {
+      "id": "readme_lowest_region",
+      "spoken": "Which region has the lowest revenue",
+      "sql": "SELECT region, SUM(revenue) AS total FROM sales GROUP BY region ORDER BY total ASC LIMIT 1",
+      "columns": [
+        "region",
+        "total"
+      ],
+      "rows": [
+        [
+          "West",
+          "14100"
+        ]
+      ],
+      "summary": "West has the lowest revenue at 14,100."
+    },
+    {
+      "id": "readme_february_count",
+      "spoken": "How many sales happened in February",
+      "sql": "SELECT COUNT(*) AS sales_count FROM sales WHERE date LIKE '2024-02%'",
+      "columns": [
+        "sales_count"
+      ],
+      "rows": [
+        [
+          "2"
+        ]
+      ],
+      "summary": "There were 2 sales in February."
+    },
+    {
+      "id": "readme_north_vs_south",
+      "spoken": "Compare revenue between North and South",
+      "sql": "SELECT region, SUM(revenue) AS total FROM sales WHERE region IN ('North','South') GROUP BY region ORDER BY total DESC",
+      "columns": [
+        "region",
+        "total"
+      ],
+      "rows": [
+        [
+          "North",
+          "53200"
+        ],
+        [
+          "South",
+          "34900"
+        ]
+      ],
+      "summary": "North is ahead with 53,200."
+    },
+    {
+      "id": "readme_all_electronics",
+      "spoken": "Show me all electronics sales",
+      "sql": "SELECT date, product, region, units, revenue FROM sales WHERE category = 'Electronics' ORDER BY date",
+      "columns": [
+        "date",
+        "product",
+        "region",
+        "units",
+        "revenue"
+      ],
+      "rows": [
+        [
+          "2024-01-15",
+          "Widget A",
+          "North",
+          "120",
+          "14400"
+        ],
+        [
+          "2024-01-20",
+          "Widget B",
+          "South",
+          "85",
+          "8500"
+        ],
+        [
+          "2024-02-18",
+          "Widget A",
+          "West",
+          "95",
+          "11400"
+        ],
+        [
+          "2024-03-22",
+          "Widget B",
+          "East",
+          "140",
+          "14000"
+        ],
+        [
+          "2024-04-01",
+          "Widget A",
+          "South",
+          "175",
+          "21000"
+        ],
+        [
+          "2024-05-05",
+          "Widget B",
+          "North",
+          "220",
+          "22000"
+        ],
+        [
+          "2024-06-01",
+          "Widget A",
+          "East",
+          "130",
+          "15600"
+        ]
+      ],
+      "summary": "Found 7 electronics sales."
+    },
+    {
+      "id": "agg_revenue_by_category",
+      "spoken": "Break revenue down by category",
+      "sql": "SELECT category, SUM(revenue) AS total FROM sales GROUP BY category ORDER BY total DESC",
+      "columns": [
+        "category",
+        "total"
+      ],
+      "rows": [
+        [
+          "Electronics",
+          "106900"
+        ],
+        [
+          "Accessories",
+          "30900"
+        ]
+      ],
+      "summary": "Electronics leads with 106,900."
+    },
+    {
+      "id": "agg_revenue_by_product",
+      "spoken": "Which product earns the most revenue",
+      "sql": "SELECT product, SUM(revenue) AS total FROM sales GROUP BY product ORDER BY total DESC",
+      "columns": [
+        "product",
+        "total"
+      ],
+      "rows": [
+        [
+          "Widget A",
+          "62400"
+        ],
+        [
+          "Widget B",
+          "44500"
+        ],
+        [
+          "Gadget X",
+          "16200"
+        ],
+        [
+          "Gadget Y",
+          "14700"
+        ]
+      ],
+      "summary": "Widget A earns the most at 62,400."
+    },
+    {
+      "id": "agg_units_by_product",
+      "spoken": "Who sold the most units overall",
+      "sql": "SELECT product, SUM(units) AS units FROM sales GROUP BY product ORDER BY units DESC",
+      "columns": [
+        "product",
+        "units"
+      ],
+      "rows": [
+        [
+          "Gadget X",
+          "540"
+        ],
+        [
+          "Widget A",
+          "520"
+        ],
+        [
+          "Gadget Y",
+          "490"
+        ],
+        [
+          "Widget B",
+          "445"
+        ]
+      ],
+      "summary": "Gadget X sold the most units, 540."
+    },
+    {
+      "id": "agg_by_month",
+      "spoken": "Show me revenue by month",
+      "sql": "SELECT substr(date,1,7) AS month, SUM(revenue) AS total, SUM(units) AS units FROM sales GROUP BY month ORDER BY month",
+      "columns": [
+        "month",
+        "total",
+        "units"
+      ],
+      "rows": [
+        [
+          "2024-01",
+          "22900",
+          "205"
+        ],
+        [
+          "2024-02",
+          "17400",
+          "295"
+        ],
+        [
+          "2024-03",
+          "23300",
+          "450"
+        ],
+        [
+          "2024-04",
+          "23700",
+          "265"
+        ],
+        [
+          "2024-05",
+          "27400",
+          "400"
+        ],
+        [
+          "2024-06",
+          "23100",
+          "380"
+        ]
+      ],
+      "summary": "6 months of data, peaking at 22,900."
+    }
+  ],
+  "tests": [
+    {
+      "name": "test_init_db_creates_tables",
+      "line": 62,
+      "asserts": [
+        {
+          "line": 70,
+          "text": "assert \"sales\" in names",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 71,
+          "text": "assert \"query_history\" in names",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_sample_data_inserted",
+      "line": 74,
+      "asserts": [
+        {
+          "line": 78,
+          "text": "assert rows[0][\"n\"] >= 10",
+          "kind": "shape",
+          "why": "checks cardinality, not content"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_run_query_returns_dicts",
+      "line": 80,
+      "asserts": [
+        {
+          "line": 84,
+          "text": "assert isinstance(rows, list)",
+          "kind": "type",
+          "why": "checks a Python type, not a value"
+        },
+        {
+          "line": 85,
+          "text": "assert isinstance(rows[0], dict)",
+          "kind": "type",
+          "why": "checks a Python type, not a value"
+        },
+        {
+          "line": 86,
+          "text": "assert \"product\" in rows[0]",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 87,
+          "text": "assert \"revenue\" in rows[0]",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_run_query_aggregation",
+      "line": 89,
+      "asserts": [
+        {
+          "line": 93,
+          "text": "assert len(rows) > 0",
+          "kind": "shape",
+          "why": "checks cardinality, not content"
+        },
+        {
+          "line": 94,
+          "text": "assert \"region\" in rows[0]",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 95,
+          "text": "assert \"total\" in rows[0]",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_log_query",
+      "line": 97,
+      "asserts": [
+        {
+          "line": 102,
+          "text": "assert len(rows) >= 1",
+          "kind": "shape",
+          "why": "checks cardinality, not content"
+        },
+        {
+          "line": 103,
+          "text": "assert rows[-1][\"voice_input\"] == \"test question\"",
+          "kind": "value_self_supplied",
+          "why": "echoes a value this test supplied"
+        },
+        {
+          "line": 104,
+          "text": "assert rows[-1][\"latency_ms\"] == 250",
+          "kind": "value_self_supplied",
+          "why": "echoes a value this test supplied"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_get_schema_returns_string",
+      "line": 106,
+      "asserts": [
+        {
+          "line": 109,
+          "text": "assert \"sales\" in schema",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 110,
+          "text": "assert \"revenue\" in schema",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 111,
+          "text": "assert \"region\" in schema",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_generate_sql_with_anthropic",
+      "line": 119,
+      "asserts": [
+        {
+          "line": 137,
+          "text": "assert result[\"sql\"] == \"SELECT region, SUM(revenue) FROM sales GROUP BY region\"",
+          "kind": "value_self_supplied",
+          "why": "echoes a value this test supplied"
+        },
+        {
+          "line": 138,
+          "text": "assert \"revenue\" in result[\"summary\"].lower()",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_generate_sql_falls_back_to_openai",
+      "line": 141,
+      "asserts": [
+        {
+          "line": 167,
+          "text": "assert \"sql\" in result",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 168,
+          "text": "assert \"summary\" in result",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_generate_sql_strips_markdown_fences",
+      "line": 171,
+      "asserts": [
+        {
+          "line": 186,
+          "text": "assert result[\"sql\"] == \"SELECT 1\"",
+          "kind": "value_self_supplied",
+          "why": "echoes a value this test supplied"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_no_api_key_raises",
+      "line": 189,
+      "asserts": [],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_transcribe_returns_string",
+      "line": 208,
+      "asserts": [
+        {
+          "line": 220,
+          "text": "assert isinstance(result, str)",
+          "kind": "type",
+          "why": "checks a Python type, not a value"
+        },
+        {
+          "line": 221,
+          "text": "assert len(result) > 0",
+          "kind": "shape",
+          "why": "checks cardinality, not content"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_transcribe_uses_wav_suffix",
+      "line": 224,
+      "asserts": [
+        {
+          "line": 240,
+          "text": "assert result == \"test transcript\"",
+          "kind": "value_self_supplied",
+          "why": "echoes a value this test supplied"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_synthesize_returns_bytes",
+      "line": 247,
+      "asserts": [
+        {
+          "line": 260,
+          "text": "assert isinstance(result, bytes)",
+          "kind": "type",
+          "why": "checks a Python type, not a value"
+        },
+        {
+          "line": 261,
+          "text": "assert len(result) > 0",
+          "kind": "shape",
+          "why": "checks cardinality, not content"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_synthesize_called_with_correct_text",
+      "line": 263,
+      "asserts": [
+        {
+          "line": 278,
+          "text": "assert synthesis_input.text == \"Widget B sold the most units.\"",
+          "kind": "value_self_supplied",
+          "why": "echoes a value this test supplied"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_health_endpoint",
+      "line": 296,
+      "asserts": [
+        {
+          "line": 299,
+          "text": "assert resp.status_code == 200",
+          "kind": "status",
+          "why": "checks an HTTP status, not a value"
+        },
+        {
+          "line": 301,
+          "text": "assert data[\"status\"] == \"ok\"",
+          "kind": "value_self_supplied",
+          "why": "asserts a literal the test controls"
+        },
+        {
+          "line": 302,
+          "text": "assert data[\"sales_rows\"] >= 10",
+          "kind": "shape",
+          "why": "checks cardinality, not content"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_text_query_endpoint",
+      "line": 304,
+      "asserts": [
+        {
+          "line": 322,
+          "text": "assert resp.status_code == 200",
+          "kind": "status",
+          "why": "checks an HTTP status, not a value"
+        },
+        {
+          "line": 324,
+          "text": "assert \"sql\" in data",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 325,
+          "text": "assert \"summary\" in data",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 326,
+          "text": "assert \"results\" in data",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 327,
+          "text": "assert \"latency_ms\" in data",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 328,
+          "text": "assert data[\"row_count\"] > 0",
+          "kind": "shape",
+          "why": "checks cardinality, not content"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_text_query_missing_body",
+      "line": 330,
+      "asserts": [
+        {
+          "line": 333,
+          "text": "assert resp.status_code == 400",
+          "kind": "status",
+          "why": "checks an HTTP status, not a value"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_text_query_blocks_destructive_sql",
+      "line": 335,
+      "asserts": [
+        {
+          "line": 351,
+          "text": "assert resp.status_code == 403",
+          "kind": "status",
+          "why": "checks an HTTP status, not a value"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_voice_endpoint_rejects_tiny_audio",
+      "line": 353,
+      "asserts": [
+        {
+          "line": 360,
+          "text": "assert resp.status_code == 400",
+          "kind": "status",
+          "why": "checks an HTTP status, not a value"
+        }
+      ],
+      "blindTo": [
+        "F5",
+        "F7"
+      ],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_voice_endpoint_full_pipeline",
+      "line": 362,
+      "asserts": [
+        {
+          "line": 405,
+          "text": "assert resp.status_code == 200",
+          "kind": "status",
+          "why": "checks an HTTP status, not a value"
+        },
+        {
+          "line": 406,
+          "text": "assert resp.headers[\"content-type\"] == \"audio/mpeg\"",
+          "kind": "value_self_supplied",
+          "why": "asserts a literal the test controls"
+        },
+        {
+          "line": 407,
+          "text": "assert \"X-Transcript\" in resp.headers",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 408,
+          "text": "assert \"X-Summary\" in resp.headers",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 409,
+          "text": "assert \"X-Row-Count\" in resp.headers",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 410,
+          "text": "assert \"X-Latency-Ms\" in resp.headers",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 411,
+          "text": "assert int(resp.headers[\"X-Row-Count\"]) > 0",
+          "kind": "shape",
+          "why": "checks cardinality, not content"
+        }
+      ],
+      "blindTo": [
+        "F5",
+        "F7"
+      ],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_query_history_endpoint",
+      "line": 413,
+      "asserts": [
+        {
+          "line": 419,
+          "text": "assert resp.status_code == 200",
+          "kind": "status",
+          "why": "checks an HTTP status, not a value"
+        },
+        {
+          "line": 421,
+          "text": "assert \"history\" in data",
+          "kind": "shape",
+          "why": "checks a key or substring is present"
+        },
+        {
+          "line": 422,
+          "text": "assert len(data[\"history\"]) >= 1",
+          "kind": "shape",
+          "why": "checks cardinality, not content"
+        }
+      ],
+      "blindTo": [
+        "F6"
+      ],
+      "assertsAValue": false
+    },
+    {
+      "name": "test_docs_available",
+      "line": 424,
+      "asserts": [
+        {
+          "line": 427,
+          "text": "assert resp.status_code == 200",
+          "kind": "status",
+          "why": "checks an HTTP status, not a value"
+        }
+      ],
+      "blindTo": [],
+      "assertsAValue": false
+    }
+  ],
+  "assertBuckets": {
+    "shape": 30,
+    "type": 4,
+    "value_self_supplied": 8,
+    "status": 8
+  },
+  "queries": [
+    {
+      "id": "revenue_by_region",
+      "source": "README.md:16 demo",
+      "natural": "Which region leads in total revenue?",
+      "sql": "SELECT region, SUM(revenue) AS total FROM sales GROUP BY region ORDER BY total DESC",
+      "columns": [
+        "region",
+        "total"
+      ],
+      "rows": [
+        [
+          "North",
+          "53200"
+        ],
+        [
+          "East",
+          "35600"
+        ],
+        [
+          "South",
+          "34900"
+        ],
+        [
+          "West",
+          "14100"
+        ]
+      ]
+    },
+    {
+      "id": "q2_units_by_product",
+      "source": "README.md units demo",
+      "natural": "Which product had the highest units in Q2?",
+      "sql": "SELECT product, SUM(units) AS units FROM sales WHERE date >= '2024-04-01' AND date <= '2024-06-30' GROUP BY product ORDER BY units DESC",
+      "columns": [
+        "product",
+        "units"
+      ],
+      "rows": [
+        [
+          "Gadget X",
+          "340"
+        ],
+        [
+          "Widget A",
+          "305"
+        ],
+        [
+          "Widget B",
+          "220"
+        ],
+        [
+          "Gadget Y",
+          "180"
+        ]
+      ]
+    },
+    {
+      "id": "fewshot_prompt_example",
+      "source": "backend/services/llm.py SYSTEM_PROMPT",
+      "natural": "the few shot example the model is conditioned on",
+      "sql": "SELECT region, SUM(revenue) FROM sales GROUP BY region",
+      "columns": [
+        "region",
+        "SUM(revenue)"
+      ],
+      "rows": [
+        [
+          "East",
+          "35600"
+        ],
+        [
+          "North",
+          "53200"
+        ],
+        [
+          "South",
+          "34900"
+        ],
+        [
+          "West",
+          "14100"
+        ]
+      ]
+    },
+    {
+      "id": "readme_total_revenue",
+      "source": "README.md:167 example",
+      "natural": "What is the total revenue this year?",
+      "sql": "SELECT SUM(revenue) AS total_revenue FROM sales WHERE date LIKE '2024%'",
+      "columns": [
+        "total_revenue"
+      ],
+      "rows": [
+        [
+          "137800"
+        ]
+      ]
+    },
+    {
+      "id": "readme_top3_units",
+      "source": "README.md:168 example",
+      "natural": "Show me top 3 products by units sold",
+      "sql": "SELECT product, SUM(units) AS units FROM sales GROUP BY product ORDER BY units DESC LIMIT 3",
+      "columns": [
+        "product",
+        "units"
+      ],
+      "rows": [
+        [
+          "Gadget X",
+          "540"
+        ],
+        [
+          "Widget A",
+          "520"
+        ],
+        [
+          "Gadget Y",
+          "490"
+        ]
+      ]
+    },
+    {
+      "id": "readme_lowest_region",
+      "source": "README.md:169 example",
+      "natural": "Which region has the lowest revenue?",
+      "sql": "SELECT region, SUM(revenue) AS total FROM sales GROUP BY region ORDER BY total ASC LIMIT 1",
+      "columns": [
+        "region",
+        "total"
+      ],
+      "rows": [
+        [
+          "West",
+          "14100"
+        ]
+      ]
+    },
+    {
+      "id": "readme_february_count",
+      "source": "README.md:170 example",
+      "natural": "How many sales happened in February?",
+      "sql": "SELECT COUNT(*) AS sales_count FROM sales WHERE date LIKE '2024-02%'",
+      "columns": [
+        "sales_count"
+      ],
+      "rows": [
+        [
+          "2"
+        ]
+      ]
+    },
+    {
+      "id": "readme_north_vs_south",
+      "source": "README.md:171 example",
+      "natural": "Compare revenue between North and South",
+      "sql": "SELECT region, SUM(revenue) AS total FROM sales WHERE region IN ('North','South') GROUP BY region ORDER BY total DESC",
+      "columns": [
+        "region",
+        "total"
+      ],
+      "rows": [
+        [
+          "North",
+          "53200"
+        ],
+        [
+          "South",
+          "34900"
+        ]
+      ]
+    },
+    {
+      "id": "readme_all_electronics",
+      "source": "README.md:172 example",
+      "natural": "Show me all electronics sales",
+      "sql": "SELECT date, product, region, units, revenue FROM sales WHERE category = 'Electronics' ORDER BY date",
+      "columns": [
+        "date",
+        "product",
+        "region",
+        "units",
+        "revenue"
+      ],
+      "rows": [
+        [
+          "2024-01-15",
+          "Widget A",
+          "North",
+          "120",
+          "14400"
+        ],
+        [
+          "2024-01-20",
+          "Widget B",
+          "South",
+          "85",
+          "8500"
+        ],
+        [
+          "2024-02-18",
+          "Widget A",
+          "West",
+          "95",
+          "11400"
+        ],
+        [
+          "2024-03-22",
+          "Widget B",
+          "East",
+          "140",
+          "14000"
+        ],
+        [
+          "2024-04-01",
+          "Widget A",
+          "South",
+          "175",
+          "21000"
+        ],
+        [
+          "2024-05-05",
+          "Widget B",
+          "North",
+          "220",
+          "22000"
+        ],
+        [
+          "2024-06-01",
+          "Widget A",
+          "East",
+          "130",
+          "15600"
+        ]
+      ]
+    },
+    {
+      "id": "agg_total_revenue",
+      "source": "section 4c reference",
+      "natural": "grand total revenue",
+      "sql": "SELECT SUM(revenue) AS total FROM sales",
+      "columns": [
+        "total"
+      ],
+      "rows": [
+        [
+          "137800"
+        ]
+      ]
+    },
+    {
+      "id": "agg_revenue_by_category",
+      "source": "section 4c reference",
+      "natural": "revenue by category",
+      "sql": "SELECT category, SUM(revenue) AS total FROM sales GROUP BY category ORDER BY total DESC",
+      "columns": [
+        "category",
+        "total"
+      ],
+      "rows": [
+        [
+          "Electronics",
+          "106900"
+        ],
+        [
+          "Accessories",
+          "30900"
+        ]
+      ]
+    },
+    {
+      "id": "agg_revenue_by_product",
+      "source": "section 4c reference",
+      "natural": "revenue by product",
+      "sql": "SELECT product, SUM(revenue) AS total FROM sales GROUP BY product ORDER BY total DESC",
+      "columns": [
+        "product",
+        "total"
+      ],
+      "rows": [
+        [
+          "Widget A",
+          "62400"
+        ],
+        [
+          "Widget B",
+          "44500"
+        ],
+        [
+          "Gadget X",
+          "16200"
+        ],
+        [
+          "Gadget Y",
+          "14700"
+        ]
+      ]
+    },
+    {
+      "id": "agg_units_by_product",
+      "source": "derived, F11",
+      "natural": "all time units by product",
+      "sql": "SELECT product, SUM(units) AS units FROM sales GROUP BY product ORDER BY units DESC",
+      "columns": [
+        "product",
+        "units"
+      ],
+      "rows": [
+        [
+          "Gadget X",
+          "540"
+        ],
+        [
+          "Widget A",
+          "520"
+        ],
+        [
+          "Gadget Y",
+          "490"
+        ],
+        [
+          "Widget B",
+          "445"
+        ]
+      ]
+    },
+    {
+      "id": "agg_row_count",
+      "source": "section 4c reference",
+      "natural": "how many sample rows",
+      "sql": "SELECT COUNT(*) AS n FROM sales",
+      "columns": [
+        "n"
+      ],
+      "rows": [
+        [
+          "12"
+        ]
+      ]
+    },
+    {
+      "id": "agg_by_month",
+      "source": "derived",
+      "natural": "revenue by month",
+      "sql": "SELECT substr(date,1,7) AS month, SUM(revenue) AS total, SUM(units) AS units FROM sales GROUP BY month ORDER BY month",
+      "columns": [
+        "month",
+        "total",
+        "units"
+      ],
+      "rows": [
+        [
+          "2024-01",
+          "22900",
+          "205"
+        ],
+        [
+          "2024-02",
+          "17400",
+          "295"
+        ],
+        [
+          "2024-03",
+          "23300",
+          "450"
+        ],
+        [
+          "2024-04",
+          "23700",
+          "265"
+        ],
+        [
+          "2024-05",
+          "27400",
+          "400"
+        ],
+        [
+          "2024-06",
+          "23100",
+          "380"
+        ]
+      ]
+    },
+    {
+      "id": "agg_region_category",
+      "source": "derived",
+      "natural": "revenue by region and category",
+      "sql": "SELECT region, category, SUM(revenue) AS total FROM sales GROUP BY region, category ORDER BY region, category",
+      "columns": [
+        "region",
+        "category",
+        "total"
+      ],
+      "rows": [
+        [
+          "East",
+          "Accessories",
+          "6000"
+        ],
+        [
+          "East",
+          "Electronics",
+          "29600"
+        ],
+        [
+          "North",
+          "Accessories",
+          "16800"
+        ],
+        [
+          "North",
+          "Electronics",
+          "36400"
+        ],
+        [
+          "South",
+          "Accessories",
+          "5400"
+        ],
+        [
+          "South",
+          "Electronics",
+          "29500"
+        ],
+        [
+          "West",
+          "Accessories",
+          "2700"
+        ],
+        [
+          "West",
+          "Electronics",
+          "11400"
+        ]
+      ]
+    },
+    {
+      "id": "all_rows",
+      "source": "backend/database/db.py SAMPLE_DATA",
+      "natural": "every row in the sample table",
+      "sql": "SELECT id, date, product, category, region, units, revenue FROM sales ORDER BY id",
+      "columns": [
+        "id",
+        "date",
+        "product",
+        "category",
+        "region",
+        "units",
+        "revenue"
+      ],
+      "rows": [
+        [
+          "1",
+          "2024-01-15",
+          "Widget A",
+          "Electronics",
+          "North",
+          "120",
+          "14400"
+        ],
+        [
+          "2",
+          "2024-01-20",
+          "Widget B",
+          "Electronics",
+          "South",
+          "85",
+          "8500"
+        ],
+        [
+          "3",
+          "2024-02-05",
+          "Gadget X",
+          "Accessories",
+          "East",
+          "200",
+          "6000"
+        ],
+        [
+          "4",
+          "2024-02-18",
+          "Widget A",
+          "Electronics",
+          "West",
+          "95",
+          "11400"
+        ],
+        [
+          "5",
+          "2024-03-10",
+          "Gadget Y",
+          "Accessories",
+          "North",
+          "310",
+          "9300"
+        ],
+        [
+          "6",
+          "2024-03-22",
+          "Widget B",
+          "Electronics",
+          "East",
+          "140",
+          "14000"
+        ],
+        [
+          "7",
+          "2024-04-01",
+          "Widget A",
+          "Electronics",
+          "South",
+          "175",
+          "21000"
+        ],
+        [
+          "8",
+          "2024-04-15",
+          "Gadget X",
+          "Accessories",
+          "West",
+          "90",
+          "2700"
+        ],
+        [
+          "9",
+          "2024-05-05",
+          "Widget B",
+          "Electronics",
+          "North",
+          "220",
+          "22000"
+        ],
+        [
+          "10",
+          "2024-05-20",
+          "Gadget Y",
+          "Accessories",
+          "South",
+          "180",
+          "5400"
+        ],
+        [
+          "11",
+          "2024-06-01",
+          "Widget A",
+          "Electronics",
+          "East",
+          "130",
+          "15600"
+        ],
+        [
+          "12",
+          "2024-06-14",
+          "Gadget X",
+          "Accessories",
+          "North",
+          "250",
+          "7500"
+        ]
+      ]
+    },
+    {
+      "id": "header_first_rows",
+      "source": "backend/routers/query.py X-Results",
+      "natural": "the first 3 rows, as X-Results carries them",
+      "sql": "SELECT id, date, product, category, region, units, revenue FROM sales ORDER BY id LIMIT 3",
+      "columns": [
+        "id",
+        "date",
+        "product",
+        "category",
+        "region",
+        "units",
+        "revenue"
+      ],
+      "rows": [
+        [
+          "1",
+          "2024-01-15",
+          "Widget A",
+          "Electronics",
+          "North",
+          "120",
+          "14400"
+        ],
+        [
+          "2",
+          "2024-01-20",
+          "Widget B",
+          "Electronics",
+          "South",
+          "85",
+          "8500"
+        ],
+        [
+          "3",
+          "2024-02-05",
+          "Gadget X",
+          "Accessories",
+          "East",
+          "200",
+          "6000"
+        ]
+      ]
+    },
+    {
+      "id": "schema_columns_sales",
+      "source": "PRAGMA",
+      "natural": "the sales schema as SQLite reports it",
+      "sql": "SELECT name, type FROM pragma_table_info('sales')",
+      "columns": [
+        "name",
+        "type"
+      ],
+      "rows": [
+        [
+          "id",
+          "INTEGER"
+        ],
+        [
+          "date",
+          "TEXT"
+        ],
+        [
+          "product",
+          "TEXT"
+        ],
+        [
+          "category",
+          "TEXT"
+        ],
+        [
+          "region",
+          "TEXT"
+        ],
+        [
+          "units",
+          "INTEGER"
+        ],
+        [
+          "revenue",
+          "REAL"
+        ]
+      ]
+    },
+    {
+      "id": "schema_columns_history",
+      "source": "PRAGMA",
+      "natural": "the query_history schema as SQLite reports it",
+      "sql": "SELECT name, type FROM pragma_table_info('query_history')",
+      "columns": [
+        "name",
+        "type"
+      ],
+      "rows": [
+        [
+          "id",
+          "INTEGER"
+        ],
+        [
+          "timestamp",
+          "TEXT"
+        ],
+        [
+          "voice_input",
+          "TEXT"
+        ],
+        [
+          "generated_sql",
+          "TEXT"
+        ],
+        [
+          "result_summary",
+          "TEXT"
+        ],
+        [
+          "latency_ms",
+          "INTEGER"
+        ]
+      ]
+    }
+  ],
+  "guard": [
+    {
+      "id": "replace_row",
+      "kind": "write",
+      "legitimate": false,
+      "sql": "REPLACE INTO sales VALUES (1,'2024-01-15','PWNED','x','North',0,0.0)",
+      "note": "overwrites a row; REPLACE is not in the blocklist",
+      "blocklist_allows": true,
+      "blocklist_correct": false,
+      "matched_keyword": null,
+      "readonly_allows": false,
+      "readonly_correct": true,
+      "authorizer_allows": false,
+      "authorizer_correct": true,
+      "authorizer_error": "not authorized"
+    },
+    {
+      "id": "attach_db",
+      "kind": "write",
+      "legitimate": false,
+      "sql": "ATTACH DATABASE 'evil.db' AS e",
+      "note": "opens another file; survives a mode=ro connection",
+      "blocklist_allows": true,
+      "blocklist_correct": false,
+      "matched_keyword": null,
+      "readonly_allows": true,
+      "readonly_correct": false,
+      "authorizer_allows": false,
+      "authorizer_correct": true,
+      "authorizer_error": "not authorized"
+    },
+    {
+      "id": "pragma_schema",
+      "kind": "write",
+      "legitimate": false,
+      "sql": "PRAGMA table_info(sales)",
+      "note": "schema disclosure; survives a mode=ro connection",
+      "blocklist_allows": true,
+      "blocklist_correct": false,
+      "matched_keyword": null,
+      "readonly_allows": true,
+      "readonly_correct": false,
+      "authorizer_allows": false,
+      "authorizer_correct": true,
+      "authorizer_error": "not authorized"
+    },
+    {
+      "id": "like_update",
+      "kind": "read",
+      "legitimate": true,
+      "sql": "SELECT * FROM sales WHERE product LIKE '%update%'",
+      "note": "blocked because UPDATE is a substring of the literal",
+      "blocklist_allows": false,
+      "blocklist_correct": false,
+      "matched_keyword": "UPDATE",
+      "readonly_allows": true,
+      "readonly_correct": true,
+      "authorizer_allows": true,
+      "authorizer_correct": true,
+      "authorizer_error": null
+    },
+    {
+      "id": "literal_deleted",
+      "kind": "read",
+      "legitimate": true,
+      "sql": "SELECT 'DELETED' AS status FROM sales",
+      "note": "blocked because DELETE is a substring of the literal",
+      "blocklist_allows": false,
+      "blocklist_correct": false,
+      "matched_keyword": "DELETE",
+      "readonly_allows": true,
+      "readonly_correct": true,
+      "authorizer_allows": true,
+      "authorizer_correct": true,
+      "authorizer_error": null
+    },
+    {
+      "id": "audit_generated_sql",
+      "kind": "read",
+      "legitimate": true,
+      "sql": "SELECT voice_input, generated_sql FROM query_history WHERE generated_sql LIKE '%DROP%'",
+      "note": "an audit query looking for attempted writes; blocked because DROP is a substring of its own search term",
+      "blocklist_allows": false,
+      "blocklist_correct": false,
+      "matched_keyword": "DROP",
+      "readonly_allows": true,
+      "readonly_correct": true,
+      "authorizer_allows": true,
+      "authorizer_correct": true,
+      "authorizer_error": null
+    }
+  ],
+  "replaceMutation": {
+    "before": "Widget A",
+    "after": "PWNED"
+  },
+  "historyClamp": {
+    "cap": 50,
+    "requested": -1,
+    "effectiveLimit": -1,
+    "rowsReturned": 3,
+    "rowsTotal": 3
+  }
+}
